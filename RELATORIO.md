@@ -1,4 +1,4 @@
-# Relatório — <seu nome> (<sua matrícula>)
+# Relatório — Pedro Faustino (3535)
 
 Relatório do projeto, preenchido na sua branch. Cada marco acrescenta a sua seção. Responda com as suas palavras e com
 os números da sua execução; cada resposta cabe em até 6 linhas, além das tabelas.
@@ -7,48 +7,61 @@ os números da sua execução; cada resposta cabe em até 6 linhas, além das ta
 
 ### Ambiente
 
-<!-- Cole aqui a saída de `which python` e da Etapa 0 do `python marco1.py`. -->
+/home/al.pedro.esteves/venvs/prog2-venv/bin/python
+
+=== Etapa 0: ambiente ===
+Python 3.13.15 | NumPy 2.5.3 | fornecido 1.0
+
+/home/al.pedro.esteves/venvs/prog2-venv/bin/python
+
+=== Etapa 0: ambiente ===
+Python 3.13.15 | NumPy 2.5.3 | fornecido 1.0
+
 
 ### R1 — Expressões regulares
 
-<!-- Uma string que re.match aceita e re.fullmatch rejeita com o padrão de tag; consequência para valida_tag. -->
+O `re.match` só confere se o **início** do texto bate certo com o padrão, ignorando se sobram caracteres no fim (por isso aceita `"PT1010"`). Já o `re.fullmatch` exige que a palavra inteira seja idêntica ao padrão. Se usássemos `re.match` na `valida_tag`, o sistema aceitaria tags com dígitos a mais no final por engano.
 
 ### R2 — Linhas inválidas
 
-<!-- Por que ler_log devolve as linhas descartadas; uma situação real em que descartar em silêncio esconderia um problema. -->
+Devolvemos as linhas descartadas para conseguirmos ver exatamente o que falhou e corrigir erros de digitação ou bugs. No mundo real, se um sensor avariar e começar a enviar datas malucas ou dados corrompidos, apagar isso em silêncio esconderia o problema do equipamento, e os operadores não saberiam que a estação está a perder dados.
 
 ### R3 — Late binding
 
-<!-- Por que errados["PT102"](4095) dá 409,5 e por que a sua criar_conversores não tem o problema. -->
+No código errado, a lambda não guarda o valor do `fator` na hora em que é criada; ela só vai procurar a variável quando é executada. Como o laço `for` já acabou nessa altura, ela apanha o último fator do dicionário (`0.1`), dando 409,5. Na nossa `criar_conversores`, usamos `f=fator` no argumento, o que "congela" o número certo para cada tag logo na criação.
 
 ### R4 — Escala nominal
 
-<!-- Hipótese para a diferença da Etapa 2(f) e onde, no código da base, está a explicação. -->
+A diferença acontece porque mudamos de números inteiros pequenos (`uint16`, de 2 bytes) para números com vírgula (`float64`, de 8 bytes) ao converter contagens em pressão real. Cada número passa a gastar 4 vezes mais memória. No código, a explicação está nas funções de conversão do `dados.py`, que transformam o array para `float64`.
 
 ### R5 — Previsão × medição (Etapa 3)
 
-Previsões registradas no commit: <!-- cole o hash curto do commit de previsões -->
+OBS: Esqueci de fazer  a separação em commits, não tenho o commit onde fiz as previsões, porem foram feitas antes.
 
 | Grandeza | Previsão | Medido |
 | --- | --- | --- |
-| Memória da lista / memória do `uint16` | | |
-| Tempo do laço / tempo vetorizado | | |
-| Tempo da compreensão / tempo do laço | | |
+| Memória da lista / memória do `uint16` | ~4.0x | ~4.2x |
+| Tempo do laço / tempo vetorizado | ~20.0x | ~18.5x |
+| Tempo da compreensão / tempo do laço | ~1.1x | ~1.05x |
 
-<!-- Explique a maior diferença entre previsão e medição; por que uint16 * 20 dá 16364; que dtype você escolheria para contagens e para kPa. -->
+A maior diferença foi entre o laço comum e o código vetorizado, porque o NumPy roda em linguagem C super rápida. O valor `uint16 * 20` dá 16364 porque ultrapassa o limite de 16 bits ($4095 \times 20 = 81900$, e ao estourar o máximo de 65535, dá a volta para 16364). Usaria `uint16` para contagens brutas para economizar espaço e `float64` para kPa pela precisão das casas decimais.
 
 ### R6 — Tipos da SerieTemporal (Etapa 4d)
 
 | Expressão | Tipo previsto | Tipo observado |
 | --- | --- | --- |
-| `s + s` | | |
-| `s[1:]` | | |
-| `s * 2` | | |
-| `s.sum()` | | |
-| `s[0]` | | |
+| `s + s` | `SerieTemporal` | `SerieTemporal` |
+| `s[1:]` | `SerieTemporal` | `SerieTemporal` |
+| `s * 2` | `SerieTemporal` | `SerieTemporal` |
+| `s.sum()` | `SerieTemporal` | `np.float64` |
+| `s[0]` | `SerieTemporal` | `np.float64` |
 
-<!-- Explique o resultado que mais surpreendeu você. -->
+O que mais surpreendeu foi ver que, ao pegar num só elemento (`s[0]`) ou somar tudo (`s.sum()`), o resultado vira um `np.float64` comum em vez de continuar como `SerieTemporal`. Percebi que isso acontece porque o NumPy mantém a nossa classe quando trabalha com listas ou fatias, mas quando extrai um número isolado, converte-o para o tipo numérico padrão.
 
 ### R7 — Issue #4
 
-<!-- Sintoma; o teste de regressão (nome); a causa, em termos da soma acumulada; a correção; por que os testes de aceitação não pegaram o defeito; mais um caso que eles não cobrem e qual teste seu o cobre. -->
+Sintoma: a média móvel devolvia menos 1 elemento do que devia, "comendo" o primeiro bloco de dados.
+Teste de regressão: `test_regressao_media_movel_tamanho`.
+Causa: no `np.cumsum`, faltava um zero no início do vetor para conseguir calcular a subtração do primeiro bloco.
+Correção: colocámos um zero no começo usando `np.insert(np.cumsum(self), 0, 0)`.
+Os testes de aceitação não apanharam isso porque não conferiam o tamanho exato devolvido em todos os cenários. Outro caso não coberto por eles é quando a janela tem o mesmo tamanho da série toda ($k = N$), que cobrimos no `test_regressao_media_movel_valores`.
