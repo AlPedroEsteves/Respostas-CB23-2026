@@ -65,3 +65,29 @@ Teste de regressão: `test_regressao_media_movel_tamanho`.
 Causa: no `np.cumsum`, faltava um zero no início do vetor para conseguir calcular a subtração do primeiro bloco.
 Correção: colocámos um zero no começo usando `np.insert(np.cumsum(self), 0, 0)`.
 Os testes de aceitação não apanharam isso porque não conferiam o tamanho exato devolvido em todos os cenários. Outro caso não coberto por eles é quando a janela tem o mesmo tamanho da série toda ($k = N$), que cobrimos no `test_regressao_media_movel_valores`.
+
+## Marco 2
+
+### Ambiente
+
+Python 3.14.4 | NumPy 2.5.4 | SciPy 1.18.1 | fornecido 4.0 | matrícula 3535
+
+### R8 — Derivada numérica
+
+O erro diminui inicialmente porque o erro de truncamento (a aproximação matemática da fórmula) domina; à medida que $h$ diminui, a fórmula aproxima-se da definição real de limite. A partir de $h \approx 10^{-5}$, o erro de arredondamento de ponto flutuante passa a dominar, pois o computador perde precisão ao subtrair números muito próximos. 
+
+Quando $h = 10^{-14}$, a soma $x + h$ resulta exatamente em $x$ devido ao limite de casas decimais (tal como $1000 + 10^{-14} == 1000$). Isto faz com que $f(x+h) - f(x)$ seja zero. A derivada calculada passa a ser zero, logo o erro absoluto $|0 - \text{derivada\_real}|$ é exatamente o valor da própria derivada.
+
+### R9 — Issue #7
+
+Os nomes dos testes de regressão criados foram `test_um_milhao_de_decimos` e `test_soma_absorvida`. 
+
+Em ponto flutuante, a expressão `t - (s + y)` dá zero porque o Python resolve os parênteses primeiro. Como `t` foi definido na linha anterior exatamente como `s + y`, a conta torna-se literalmente $t - t$, descartando o erro de arredondamento. A forma `(t - s) - y` força a extração da diferença real armazenada, recuperando os bits perdidos. 
+
+Os testes de aceitação não apanharam o defeito porque os logs do Marco 1 possivelmente tinham poucas leituras ou valores que não acumulavam erro suficiente para ultrapassar a tolerância dos testes (o `assertAlmostEqual`).
+
+### R10 — Precisão × exatidão
+
+A **precisão** refere-se à dispersão dos dados: as leituras estão próximas umas das outras, resultando num desvio padrão semelhante (baixo) para ambas as curvas. A **exatidão** é a proximidade ao valor real (viés baixo). 
+
+A média de quase 600 leituras apenas dilui os erros aleatórios (melhora a precisão), mas o viés da curva linear é um erro sistemático inerente ao modelo matemático. A curva linear desloca sistematicamente todos os pontos para longe do valor verdadeiro, e nenhuma quantidade extra de dados consegue corrigir esse desvio central.
